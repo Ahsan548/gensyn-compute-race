@@ -31,6 +31,24 @@ h1{margin:0;color:var(--neon);text-shadow:0 0 10px var(--neon-dim)}
 .game-wrap{position:relative;width:100%;max-width:720px}
 canvas{display:block;width:100%;height:auto;border-radius:12px;background:#05060a;box-shadow:0 30px 80px rgba(0,0,0,0.6);border:1px solid rgba(255,46,134,0.03)}
 
+/* mute button (fixed top-right) */
+.mute-btn{
+  position:fixed;
+  top:16px;
+  right:18px;
+  z-index:10010;
+  width:46px;
+  height:46px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,0.04);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.03));
+  color:var(--neon);
+  font-size:18px;
+  cursor:pointer;
+  box-shadow: 0 8px 22px rgba(255,46,134,0.03);
+}
+.mute-btn.muted{ opacity:0.6; transform:scale(0.96); }
+
 /* overlay (neon animated panel) */
 .overlay{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
@@ -93,6 +111,9 @@ canvas{display:block;width:100%;height:auto;border-radius:12px;background:#05060
 .leaderboard ol{margin:0;padding-left:18px}
 .save-row{margin-top:12px;display:flex;gap:8px;justify-content:center}
 .save-row input{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);min-width:160px;background:transparent;color:var(--muted)}
+
+.site-footer{margin:18px 0;color:#ffb6df;font-weight:700}
+.site-footer a{color:var(--neon);text-decoration:none;padding:6px 12px;border-radius:8px;background:linear-gradient(180deg, rgba(255,46,134,0.02), transparent);border:1px solid rgba(255,46,134,0.03)}
 
 /* small */
 .credit{display:block;margin-top:12px;color:rgba(255,234,245,0.65);font-size:12px}
