@@ -1,21 +1,17 @@
-/* Gensyn Road Racer — pseudo-3D top approach with screen-split mobile controls
-   Controls:
-   - Keyboard: ArrowLeft / ArrowRight => lane change (instant)
-               ArrowUp => small speed increase
-               ArrowDown => small speed decrease / brake
-               Space => big brake
-               Esc => pause
-   - Mobile: Tap left half => move left
-             Tap right half => move right
-             Swipe up => boost (short nitro)
-             Swipe down => brake
+/* Gensyn Road Racer — PRO upgrade
+   - Neon animated start screen
+   - Smarter AI opponents
+   - Nitro flames visual
+   - Leaderboard (localStorage, top 5)
+   Keep your images in repo root:
+     gensyn-car.jpg, singularitynet-car.jpg, fetchai-car.jpg, bittensor-car.jpg
 */
 
 // Canvas + context
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
-// Logical resolution (kept high so scaling works well)
+// Logical resolution
 let W = canvas.width;
 let H = canvas.height;
 
@@ -25,10 +21,17 @@ const overlayTitle = document.getElementById('overlayTitle');
 const overlayText = document.getElementById('overlayText');
 const startBtn = document.getElementById('startBtn');
 const resetBtn = document.getElementById('resetBtn');
+const viewLBBtn = document.getElementById('viewLBBtn');
+const lbList = document.getElementById('lbList');
+const saveScoreRow = document.getElementById('saveScoreRow');
+const saveScoreBtn = document.getElementById('saveScoreBtn');
+const playerNameInput = document.getElementById('playerName');
 const scoreEl = document.getElementById('score');
 const speedEl = document.getElementById('speed');
 
-// Images — use your provided filenames if present (falls back to rectangles)
+const LB_KEY = 'gensyn_racer_leaderboard_v1';
+
+// Images
 const assets = {};
 const tryImgs = {
   player: 'gensyn-car.jpg',
@@ -40,51 +43,65 @@ Object.keys(tryImgs).forEach(k=>{
   const img = new Image();
   img.src = tryImgs[k];
   img.onload = ()=> assets[k] = img;
-  img.onerror = ()=> { /* missing is okay */ }
+  img.onerror = ()=> { /* ok fallback */ }
 });
 
-// Lanes positions (perspective)
+// lanes positions
 function computeLanes() {
-  // We will use three lanes across canvas width with perspective scaling
-  const left = W*0.16;
-  const middle = W*0.5;
-  const right = W*0.84;
-  return [left, middle, right];
+  return [ W*0.18, W*0.5, W*0.82 ];
 }
 let lanes = computeLanes();
 
-// Player state
+// player base
 const player = {
-  lane: 1,
-  x: 0, y: 0,
-  baseW: 160, baseH: 260, // base size (near)
-  w: 160, h: 260,
-  speedBoost: 0,
-  alive: true
+  lane:1, x:0, y:0,
+  baseW:160, baseH:260,
+  w:160, h:260,
+  alive:true
 };
 
-// Opponents
-let opponents = []; // each: {type:'op1', dist: z (distance from player), lane:0|1|2, speed, overtaken}
+// opponents
+let opponents = [];
 
-// Camera / race parameters
+// game state
 let game = {
-  running: false,
-  score: 0,
-  baseSpeed: 3.0,
-  speedMultiplier: 1.0,
-  spawnTimer: 0,
-  lastTS: 0,
-  nitroTimer: 0
+  running:false,
+  score:0,
+  baseSpeed:3.0,
+  speedMultiplier:1.0,
+  spawnTimer:0,
+  lastTS:0,
+  nitroTimer:0
 };
 
-// touch detection for screen-split & swipe
+// input & touch
 let touchState = {startX:0, startY:0, startTime:0, active:false};
+const keys = {left:false,right:false,up:false,down:false,space:false};
 
-// input state
-const keys = {left:false, right:false, up:false, down:false, space:false};
+// leaderboard helpers
+function readLeaderboard(){
+  try{
+    const raw = localStorage.getItem(LB_KEY);
+    if(!raw) return [];
+    return JSON.parse(raw);
+  }catch(e){ return []; }
+}
+function saveLeaderboard(arr){
+  localStorage.setItem(LB_KEY, JSON.stringify(arr.slice(0,10)));
+}
+function addScoreToLB(name, score){
+  const lb = readLeaderboard();
+  lb.push({name: name || 'anon', score: Number(score), ts: Date.now()});
+  lb.sort((a,b)=> b.score - a.score || a.ts - b.ts);
+  saveLeaderboard(lb.slice(0,10));
+}
+function renderLB(){
+  const lb = readLeaderboard().slice(0,5);
+  lbList.innerHTML = lb.length ? lb.map(x=>`<li><strong>${x.name}</strong> — ${x.score}</li>`).join('') : '<li>No scores yet</li>';
+}
 
-// helpers
-function resetGame() {
+// reset / start
+function resetGame(){
   opponents = [];
   game.running = false;
   game.score = 0;
@@ -92,11 +109,12 @@ function resetGame() {
   game.spawnTimer = 0;
   game.nitroTimer = 0;
   player.lane = 1;
-  player.speedBoost = 0;
   player.alive = true;
   overlayTitle.textContent = 'Gensyn Racer';
   overlayText.textContent = 'Tap left/right or use arrow keys. Swipe up = boost, swipe down = brake.';
   overlay.style.display = 'flex';
+  saveScoreRow.style.display = 'none';
+  renderLB();
   updateUI();
 }
 function startGame(){
@@ -110,34 +128,26 @@ function startGame(){
   player.alive = true;
   requestAnimationFrame(loop);
 }
-function updateUI(){
-  if(scoreEl) scoreEl.textContent = `Score: ${game.score}`;
-  if(speedEl) speedEl.textContent = `Speed: ${game.speedMultiplier.toFixed(2)}x`;
-}
 
-// resize handling: maintain logical resolution but scale canvas to CSS width
+// resize handling
 function fitCanvas(){
-  // Keep internal W,H fixed for math; scale CSS size for responsiveness.
   const maxWidth = Math.min(window.innerWidth - 32, 720);
   canvas.style.width = maxWidth + 'px';
-  // recompute lanes based on logical W
   lanes = computeLanes();
   player.x = lanes[player.lane];
-  player.y = H - 240;
+  player.y = H - 220;
 }
 window.addEventListener('resize', fitCanvas);
 fitCanvas();
 
-// keyboard events
+// keyboard
 window.addEventListener('keydown', e=>{
   if(e.key === 'ArrowLeft' || e.key === 'a'){ keys.left = true; e.preventDefault(); }
   if(e.key === 'ArrowRight' || e.key === 'd'){ keys.right = true; e.preventDefault(); }
   if(e.key === 'ArrowUp'){ keys.up = true; e.preventDefault(); }
   if(e.key === 'ArrowDown'){ keys.down = true; e.preventDefault(); }
   if(e.code === 'Space'){ keys.space = true; e.preventDefault(); }
-  if(e.key === 'Escape'){ // pause
-    if(game.running){ game.running = false; overlayTitle.textContent = 'Paused'; overlayText.textContent = 'Game paused — press Start to resume.'; overlay.style.display = 'flex'; }
-  }
+  if(e.key === 'Escape'){ if(game.running){ game.running=false; overlayTitle.textContent='Paused'; overlayText.textContent='Game paused — press Start to resume.'; overlay.style.display='flex'; } }
 });
 window.addEventListener('keyup', e=>{
   if(e.key === 'ArrowLeft' || e.key === 'a'){ keys.left = false; }
@@ -147,14 +157,14 @@ window.addEventListener('keyup', e=>{
   if(e.code === 'Space'){ keys.space = false; }
 });
 
-// mouse click acts like tap (for desktop)
+// tap/click
 canvas.addEventListener('mousedown', (ev)=>{
   const rect = canvas.getBoundingClientRect();
   const cx = ev.clientX - rect.left;
   handleTap(cx, rect.width);
 });
 
-// touch events (screen-split + swipe)
+// touchstart/move/end
 canvas.addEventListener('touchstart', (ev) => {
   if(ev.touches.length > 1) return;
   const t = ev.touches[0];
@@ -165,7 +175,6 @@ canvas.addEventListener('touchstart', (ev) => {
   touchState.active = true;
 });
 canvas.addEventListener('touchmove', (ev)=>{
-  // prevent page scroll while interacting
   if(touchState.active) ev.preventDefault();
 }, {passive:false});
 canvas.addEventListener('touchend', (ev)=>{
@@ -177,215 +186,103 @@ canvas.addEventListener('touchend', (ev)=>{
   const dx = endX - touchState.startX;
   const dy = endY - touchState.startY;
   const dt = performance.now() - touchState.startTime;
-
-  // swipe detection: vertical swipe with sufficient distance and short time
-  const minSwipe = 40; // px
+  const minSwipe = 40;
   if(Math.abs(dy) > minSwipe && Math.abs(dy) > Math.abs(dx)){
-    if(dy < 0){
-      // swipe up -> nitro
-      applyNitro();
-    } else {
-      // swipe down -> brake
-      applyBrake();
-    }
+    if(dy < 0) applyNitro();
+    else applyBrake();
   } else {
-    // treat as tap — check left/right half
     handleTap(touchState.startX, rect.width);
   }
   touchState.active = false;
 }, {passive:false});
 
-// handle tap position
 function handleTap(x, width){
-  if(x < width/2) {
-    // left half
-    moveLeft();
-  } else {
-    // right half
-    moveRight();
-  }
+  if(x < width/2) moveLeft(); else moveRight();
 }
 
-// lane movement helpers
 function moveLeft(){ if(player.lane > 0){ player.lane--; player.x = lanes[player.lane]; } }
 function moveRight(){ if(player.lane < 2){ player.lane++; player.x = lanes[player.lane]; } }
 
 // nitro / brake
-function applyNitro(){
-  game.nitroTimer = 700; // ms of extra speed
-}
-function applyBrake(){
-  // temporarily reduce speed multiplier
-  game.speedMultiplier = Math.max(0.5, game.speedMultiplier - 0.25);
-}
+function applyNitro(){ game.nitroTimer = 900; } // ms
+function applyBrake(){ game.speedMultiplier = Math.max(0.6, game.speedMultiplier - 0.25); }
 
-// spawn opponents with a distance (z). smaller z = closer
+// spawn smarter opponents
 function spawnOpponent(){
   const types = ['op1','op2','op3'];
   const t = types[Math.floor(Math.random()*types.length)];
   const lane = Math.floor(Math.random()*3);
-  const z = 1800 + Math.random()*1600; // far distance
-  const speed = 0.9 + Math.random()*0.9; // base approach speed multiplier
-  opponents.push({type:t, lane, z, speed, overtaken:false});
+  const z = 2000 + Math.random()*1400;
+  const speed = 0.9 + Math.random()*0.9;
+  // aggressiveness factor (higher -> tries to overtake/player-block more)
+  const aggr = Math.random()*1.2;
+  opponents.push({type:t, lane, z, speed, overtaken:false, aggr});
 }
 
-// convert world distance z to screen Y and scale (simple perspective)
+// world projection
 function projectZtoY(z){
-  // z large => near top; z small => near bottom
-  // choose near plane at z=0 -> bottom (player position), far plane at z=3000 -> top
-  const farZ = 3000;
-  const t = Math.max(0, Math.min(1, z / farZ)); // 0..1
-  // map t to Y: bottom = H - 220, top = 120
-  const y = (H - 220) - t * (H - 340);
-  // scale factor for size: near big, far small
-  const scale = 0.6 + (1 - t) * 1.6; // between 0.6..2.2
-  return { y, scale, t };
+  const farZ = 3600;
+  const t = Math.max(0, Math.min(1, z / farZ));
+  const y = (H - 220) - t * (H - 380);
+  const scale = 0.6 + (1 - t) * 1.6;
+  return {y, scale, t};
 }
 
-// collision test between player and opponent projected rects
-function checkCollision(opponent, opRect){
-  // approximate player rect at near fixed Y
-  const playerRect = {
-    x: player.x - player.w/2,
-    y: player.y - player.h/2,
-    w: player.w,
-    h: player.h
-  };
-  return !(playerRect.x + playerRect.w < opRect.x ||
-           playerRect.x > opRect.x + opRect.w ||
-           playerRect.y + playerRect.h < opRect.y ||
-           playerRect.y > opRect.y + opRect.h);
+function rectsOverlap(a,b){
+  return !(a.x + a.w < b.x || a.x > b.x + b.w || a.y + a.h < b.y || a.y > b.y + b.h);
 }
 
-// main loop
-function loop(ts){
-  if(!game.running) return;
-  const dt = Math.min(40, ts - game.lastTS);
-  game.lastTS = ts;
-
-  // handle keyboard discreet lane changes (trigger once)
-  if(keys.left){ moveLeft(); keys.left = false; }
-  if(keys.right){ moveRight(); keys.right = false; }
-  if(keys.up){ game.speedMultiplier = Math.min(3.0, game.speedMultiplier + 0.08); keys.up=false; }
-  if(keys.down){ applyBrake(); keys.down=false; }
-  if(keys.space){ applyBrake(); keys.space=false; }
-
-  // nitro timer
-  if(game.nitroTimer > 0){
-    game.nitroTimer -= dt;
-    // temporary multiplier boost
-    var nitroBoost = 1.6;
-  } else nitroBoost = 1.0;
-
-  // slowly restore multiplier to baseline
-  if(game.speedMultiplier > 1.0) game.speedMultiplier = Math.max(1.0, game.speedMultiplier - 0.0008 * dt);
-
-  // spawn opponents occasionally (spawn when far enough)
-  game.spawnTimer += dt * (0.8 + game.score * 0.002);
-  if(game.spawnTimer > 900) {
-    game.spawnTimer = 0;
-    spawnOpponent();
-    // occasionally spawn a second one
-    if(Math.random() < 0.33) spawnOpponent();
-  }
-
-  // update opponents: reduce z (approach player)
-  for(let i=opponents.length-1;i>=0;i--){
-    const o = opponents[i];
-    // opponents attempt occasional lane change (try to overtake)
-    if(Math.random() < 0.007) {
-      const tryLane = Math.floor(Math.random()*3);
-      o.lane = tryLane;
-    }
-    // approach speed is base * (global speed) * nitroBoost
-    o.z -= (game.baseSpeed + (game.speedMultiplier - 1)*2.0 + o.speed*2.2) * nitroBoost * (dt/16);
-    // if passed (z < 0) -> either overtaken (player avoided) or collided depending on lane overlap
-    if(o.z <= 20 && !o.overtaken){
-      // if lane different -> player successfully passed / avoided
-      if(o.lane !== player.lane){
-        o.overtaken = true;
-        game.score += 20;
-      } else {
-        // collision zone, check precise collision using projected rect
-        // collision handled later when drawing (projected position)
-      }
-    }
-    // remove very near/behind items
-    if(o.z < -220) opponents.splice(i,1);
-  }
-
-  // draw frame
-  drawScene(nitroBoost);
-
-  // check collisions after drawing accurate projected rects
-  for(const o of opponents){
-    const proj = projectZtoY(o.z);
-    // screen X based on lane
-    const laneX = lanes[o.lane];
-    const scale = proj.scale;
-    const w = Math.round(player.baseW * scale * 0.6);
-    const h = Math.round(player.baseH * scale * 0.6);
-    const x = laneX - w/2;
-    const y = proj.y - h/2;
-    const opRect = {x, y, w, h};
-    // collision when opponent z small (close) and same lane and rect overlap
-    if(o.z < 420 && o.lane === player.lane){
-      if(checkCollision(o, opRect)){
-        // game over
-        game.running = false;
-        player.alive = false;
-        overlayTitle.textContent = 'Game Over';
-        overlayText.textContent = `Score: ${game.score} — press Start to retry.`;
-        overlay.style.display = 'flex';
-      }
+// smarter AI behavior function
+function opponentAIUpdate(o, dt){
+  // If opponent far away, it can choose a lane to target: sometimes aim to player's lane
+  const distanceToPlayer = o.z;
+  // If aggressive and fairly close, try to move to player's lane to overtake/block
+  if(o.aggr > 0.9 && distanceToPlayer < 1400 && Math.random() < 0.015){
+    // choose lane near player (maybe same or adjacent)
+    const prefer = player.lane + (Math.random() < 0.6 ? 0 : (Math.random() < 0.5 ? -1 : 1));
+    const newLane = Math.max(0, Math.min(2, prefer));
+    o.lane = newLane;
+  } else {
+    // occasional random lane jitter
+    if(Math.random() < 0.008) {
+      o.lane = Math.floor(Math.random()*3);
     }
   }
-
-  // request next frame
-  updateUI();
-  if(game.running) requestAnimationFrame(loop);
+  // adapt speed: if behind player (larger z) try to speed up; if too close reduce to attempt lane change
+  if(o.z > 900){
+    o.z -= (o.speed * 1.6 + (game.speedMultiplier-1)*1.2) * (dt/16);
+  } else {
+    // close-range behavior: try to sync lane movement to either block or be overtaken
+    if(o.lane === player.lane && o.z < 600){
+      // if same lane and close, adjust to attempt slight acceleration or jitter to cause challenge
+      o.z -= (o.speed * 2.2 + (0.6 + o.aggr)) * (dt/16);
+    } else {
+      // normal approach
+      o.z -= (o.speed * 1.8 + (game.speedMultiplier-1) ) * (dt/16);
+    }
+  }
 }
 
-// draw road, background, cars
+// draw helpers
 let roadScroll = 0;
 function drawScene(nitroBoost){
-  // clear
   ctx.clearRect(0,0,W,H);
-
-  // road background (parallax mountains / grass)
   drawBackground();
-
-  // draw lane markers perspective
-  drawRoadMarkers(nitroBoost);
-
-  // draw opponents sorted by z descending (far first)
+  drawRoad();
+  // opponents sorted far->near
   const sorted = [...opponents].sort((a,b)=> b.z - a.z);
-  for(const o of sorted) {
-    drawOpponent(o);
-  }
-
-  // draw player at fixed near position
-  drawPlayer();
-
-  // HUD neon
-  if(game.nitroTimer > 0){
-    // tiny glow effect
-    ctx.fillStyle = 'rgba(255,80,180,0.06)';
-    roundRect(ctx, 12, H - 48, 140, 36, 8);
-    ctx.fill();
-  }
+  for(const o of sorted) drawOpponent(o);
+  drawPlayer(nitroBoost);
+  drawHUD();
 }
 
-// background: simple parallax stripes + mountains
 function drawBackground(){
-  // sky gradient
   const g = ctx.createLinearGradient(0,0,0,H);
   g.addColorStop(0, '#071020');
   g.addColorStop(1, '#02030a');
   ctx.fillStyle = g;
   ctx.fillRect(0,0,W,H);
 
-  // rolling hills (parallax using roadScroll)
   roadScroll += 1 + game.speedMultiplier*0.2;
   for(let i=0;i<4;i++){
     const amp = 40 + i*18;
@@ -403,26 +300,30 @@ function drawBackground(){
   }
 }
 
-// draw road markers
-function drawRoadMarkers(nitroBoost){
-  // simulate perspective dashed center line, moving by roadScroll
+function drawRoad(){
+  // subtle vignette road
+  ctx.fillStyle = 'rgba(0,0,0,0.42)';
+  ctx.fillRect(0,0,W,H);
+  // dashed center
   const centerX = W/2;
-  const dashH = 32;
-  const gap = 28;
-  const speed = 14 * (1 + (game.speedMultiplier-1)*0.8) * (nitroBoost || 1.0);
-  const offset = (performance.now()/10) % (dashH + gap);
-  // draw center dashes scaled by y to look perspective
+  const dashH = 28;
+  const gap = 26;
+  const offset = (performance.now()/7) % (dashH + gap);
   for(let y = -200; y < H + 200; y += dashH + gap){
-    const px = y;
     ctx.fillStyle = 'rgba(255,255,255,0.06)';
-    ctx.fillRect(centerX-6, y + (offset%80), 12, dashH);
+    // perspective scaling of dash width
+    const yy = y + offset;
+    ctx.fillRect(centerX-6, yy, 12, dashH);
   }
-  // subtle side fades (road edges)
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.fillRect(0,0,W, H);
+  // lane separators subtle
+  ctx.strokeStyle = 'rgba(255,46,134,0.02)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(W*0.33,0); ctx.lineTo(W*0.33,H);
+  ctx.moveTo(W*0.66,0); ctx.lineTo(W*0.66,H);
+  ctx.stroke();
 }
 
-// draw an opponent car with perspective by z
 function drawOpponent(o){
   const proj = projectZtoY(o.z);
   const laneX = lanes[o.lane];
@@ -432,20 +333,19 @@ function drawOpponent(o){
   const x = laneX - w/2;
   const y = proj.y - h/2;
 
-  // image or rectangle fallback
+  // image fallback
   const img = assets[o.type];
   if(img){
     ctx.drawImage(img, x, y, w, h);
   } else {
     ctx.save();
-    ctx.translate(x,y);
     ctx.fillStyle = 'rgba(120,140,255,0.95)';
-    roundRect(ctx, 0, 0, w, h, 12);
+    roundRect(ctx, x, y, w, h, 12);
     ctx.fill();
     ctx.restore();
   }
 
-  // small logo or mark at trunk
+  // logo label (tiny)
   ctx.save();
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.font = `${Math.max(10, Math.round(12*scale))}px Inter, sans-serif`;
@@ -454,17 +354,20 @@ function drawOpponent(o){
   ctx.restore();
 }
 
-// draw player car near bottom (always close & large)
-function drawPlayer(){
+function drawPlayer(nitroBoost){
   const laneX = lanes[player.lane];
-  const scale = 1.0; // always near (we keep player large)
+  const scale = 1.0;
   player.w = Math.round(player.baseW * scale * 0.9);
   player.h = Math.round(player.baseH * scale * 0.9);
   player.x = laneX;
   player.y = H - 220;
-
   const x = player.x - player.w/2;
   const y = player.y - player.h/2;
+
+  // nitro flames behind player
+  if(game.nitroTimer > 0){
+    drawNitroFlame(player.x, player.y + player.h*0.28, player.w*0.5, game.nitroTimer);
+  }
 
   const img = assets.player;
   if(img){
@@ -479,7 +382,6 @@ function drawPlayer(){
     ctx.restore();
   }
 
-  // small Gensyn badge / label in case image missing
   if(!img){
     ctx.save();
     ctx.fillStyle = '#ff2fa6';
@@ -488,6 +390,32 @@ function drawPlayer(){
     ctx.fillText('GENSYN', player.x, player.y + player.h*0.55);
     ctx.restore();
   }
+}
+
+function drawNitroFlame(cx, cy, width, remainingMs){
+  // flame composed of layered bezier shapes, color gradient magenta->pink->orangeish
+  const t = Math.max(0, Math.min(1, remainingMs / 900));
+  const length = 40 + Math.round(80 * t);
+  for(let i=0;i<3;i++){
+    const alpha = 0.12 * (1 - i*0.25);
+    ctx.fillStyle = `rgba(255,${80 + i*60},${160 - i*20},${alpha})`;
+    ctx.beginPath();
+    const w = width * (1 - i*0.18);
+    ctx.ellipse(cx, cy + (i*6) + length/6, w, length*(0.5 - i*0.12), 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+  // animated particles
+  const count = 8;
+  for(let p=0;p<count;p++){
+    const rx = (Math.sin(performance.now()/150 + p) * (width*0.5)) * (0.6 + Math.random()*0.4);
+    const ry = Math.random()*length + 6;
+    ctx.fillStyle = `rgba(255,${160 + (p%3)*20},${200 - p*8},${0.08})`;
+    ctx.fillRect(cx + rx - 2, cy + ry, 3, 3);
+  }
+}
+
+function drawHUD(){
+  // optional HUD elements (score handled via DOM)
 }
 
 // roundRect helper
@@ -501,22 +429,114 @@ function roundRect(ctx,x,y,w,h,r){
   ctx.closePath();
 }
 
-// wire start/reset
-startBtn.addEventListener('click', ()=>{
-  overlayTitle.textContent = 'Gensyn Racer';
-  overlayText.textContent = '';
-  startGame();
+// spawn & update loop
+function loop(ts){
+  if(!game.running) return;
+  const dt = Math.min(40, ts - game.lastTS);
+  game.lastTS = ts;
+
+  // inputs: discrete lane moves on key press
+  if(keys.left){ moveLeft(); keys.left = false; }
+  if(keys.right){ moveRight(); keys.right = false; }
+  if(keys.up){ game.speedMultiplier = Math.min(3.0, game.speedMultiplier + 0.08); keys.up=false; }
+  if(keys.down){ applyBrake(); keys.down=false; }
+  if(keys.space){ applyBrake(); keys.space=false; }
+
+  // nitro timer
+  let nitroBoost = 1.0;
+  if(game.nitroTimer > 0){ game.nitroTimer -= dt; nitroBoost = 1.6; }
+  else game.nitroTimer = 0;
+
+  // gradually restore speed multiplier
+  if(game.speedMultiplier > 1.0) game.speedMultiplier = Math.max(1.0, game.speedMultiplier - 0.0008 * dt);
+
+  // spawn opponents more as score increases
+  game.spawnTimer += dt * (0.8 + game.score * 0.002);
+  if(game.spawnTimer > 850){
+    game.spawnTimer = 0;
+    spawnOpponent();
+    if(Math.random() < 0.36) spawnOpponent();
+  }
+
+  // update opponents with smarter AI
+  for(let i=opponents.length-1;i>=0;i--){
+    const o = opponents[i];
+    opponentAIUpdate(o, dt);
+    // make sure z decreases based on o.speed and global speed and nitro
+    // (the AI update already reduces z in parts; ensure minimum decrease)
+    if(o.z > -100){
+      o.z -= (game.baseSpeed * 0.9 + (game.speedMultiplier - 1)*1.6) * (dt/16);
+    }
+    // scoring: mark overtaken when z crosses small threshold and in different lane -> player successfully dodged
+    if(!o.overtaken && o.z < 60){
+      if(o.lane !== player.lane){
+        o.overtaken = true;
+        game.score += 25;
+      }
+    }
+    if(o.z < -360) opponents.splice(i,1);
+  }
+
+  // draw
+  drawScene(nitroBoost);
+
+  // collisions check with precise projected rectangles if near
+  for(const o of opponents){
+    const proj = projectZtoY(o.z);
+    const laneX = lanes[o.lane];
+    const scale = proj.scale;
+    const w = Math.round(player.baseW * scale * 0.6);
+    const h = Math.round(player.baseH * scale * 0.6);
+    const x = laneX - w/2;
+    const y = proj.y - h/2;
+    if(o.z < 420 && o.lane === player.lane){
+      const opRect = {x,y,w,h};
+      const playerRect = {x: player.x - player.w/2, y: player.y - player.h/2, w: player.w, h: player.h};
+      if(rectsOverlap(playerRect, opRect)){
+        // game over
+        game.running = false;
+        player.alive = false;
+        overlayTitle.textContent = 'Game Over';
+        overlayText.textContent = `Score: ${game.score} — save your score below`;
+        overlay.style.display = 'flex';
+        // show save controls
+        saveScoreRow.style.display = 'flex';
+        playerNameInput.value = '';
+      }
+    }
+  }
+
+  updateUI();
+  if(game.running) requestAnimationFrame(loop);
+}
+
+// UI updates
+function updateUI(){
+  scoreEl.textContent = `Score: ${game.score}`;
+  speedEl.textContent = `Speed: ${game.speedMultiplier.toFixed(2)}x`;
+}
+
+// wire buttons
+startBtn.addEventListener('click', ()=> { saveScoreRow.style.display='none'; startGame(); });
+resetBtn.addEventListener('click', ()=> { location.reload(); });
+viewLBBtn.addEventListener('click', ()=> { renderLB(); });
+
+// save score handling
+saveScoreBtn && saveScoreBtn.addEventListener('click', ()=>{
+  const name = playerNameInput.value.trim().slice(0,12) || 'anon';
+  addScoreToLB(name, game.score);
+  saveScoreRow.style.display = 'none';
+  renderLB();
 });
-resetBtn.addEventListener('click', ()=>{
-  location.reload();
-});
+
+// initial renderLB
+renderLB();
 
 // init
 resetGame();
 
-/* Notes / tweak points for you:
- - spawnOpponents frequency, approach speed, and scoring are all adjustable in the top variables.
- - change image filenames in tryImgs if you renamed assets.
- - if you want opponents to actively try to change lane more aggressively (overtake), bump the chance in the loop (currently 0.007).
- - To add power-ups, spawn special objects with z and give boosts on collision.
+/* NOTES:
+ - Tweak AI aggressiveness by changing spawnOpponent aggr or opponentAIUpdate chance values.
+ - Tweak scoring and spawn rates near top variables.
+ - Add power-ups by creating items with z and checking collisions; on collision apply effect.
 */
