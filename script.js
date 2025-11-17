@@ -1,17 +1,8 @@
 /**
- * Gensyn Road Racer — Expanded & Commented Version
- * Final version that expects assets in /assets/
+ * Gensyn Road Racer — Expanded & Commented Version (with overlay fail-safe)
+ * Expects assets in /assets/
  *
- * Features:
- *  - 2D pseudo-perspective road racer
- *  - Player car + 3 opponents
- *  - Keyboard controls + mobile screen-split + swipe nitro
- *  - Nitro visual + SFX
- *  - Smarter opponent AI
- *  - Local leaderboard (localStorage)
- *  - Mute toggle (persisted)
- *
- * Keep these asset filenames in repo root under /assets/:
+ * Files required in /assets/:
  *   assets/gensyn-car.jpg
  *   assets/singularitynet-car.jpg
  *   assets/fetchai-car.jpg
@@ -22,8 +13,7 @@
  *   assets/sfx-crash.mp3
  *   assets/sfx-overtake.mp3
  *
- * Author: Ahsan (provided)
- * Notes: This is an expanded, fully-commented file for clarity.
+ * Author: Ahsan (project)
  */
 
 /* ======================================================================
@@ -760,9 +750,32 @@ window.addEventListener('resize', fitCanvas);
 fitCanvas();
 
 /* ======================================================================
+   QUICK FAIL-SAFE: overlay visible on load + Enter starts
+   ====================================================================== */
+window.addEventListener('load', () => {
+  try {
+    if (overlay) {
+      overlay.style.display = 'flex';
+      const panel = document.querySelector('.neon-panel');
+      if (panel) panel.style.zIndex = 10001;
+    }
+    if (saveScoreRow) saveScoreRow.style.display = 'none';
+  } catch (e) { /* ignore */ }
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    if (overlay && overlay.style.display !== 'none') {
+      const s = document.getElementById('startBtn');
+      if (s) s.click();
+    }
+  }
+});
+
+/* ======================================================================
    Initialize: show overlay and leaderboard
    ====================================================================== */
 renderLB();
 resetGame();
 
-/* End of expanded script.js */
+/* End of script.js */
