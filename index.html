@@ -7,6 +7,9 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- Mute toggle (fixed top-right) -->
+  <button id="muteBtn" class="mute-btn" aria-label="Mute toggle">🔊</button>
+
   <div class="ui-top">
     <h1>Gensyn Racer</h1>
     <div class="info">
@@ -40,12 +43,14 @@
           <button id="saveScoreBtn" class="btn-primary">Save Score</button>
         </div>
 
-        <small class="credit">Created by @Ahsan547m</small>
+        <small class="credit">Created by <a href="https://x.com/ahsan547m" target="_blank" rel="noopener" id="creditLink">@Ahsan547m</a></small>
       </div>
     </div>
   </div>
 
-  <footer style="text-align:center;margin:18px 0;color:#ffb6df;font-weight:700">Gensyn Themed — Road Fighter Vibe</footer>
+  <footer class="site-footer">
+    <a href="https://x.com/ahsan547m" target="_blank" rel="noopener">Created by @Ahsan547m</a>
+  </footer>
 
   <script src="script.js" defer></script>
 </body>
