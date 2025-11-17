@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Gensyn Racer — Road Style</title>
+  <title>Gensyn Racer — Road Style (Pro)</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -18,21 +18,34 @@
   <div class="game-wrap">
     <canvas id="game" width="900" height="1200" aria-label="Gensyn Racer game"></canvas>
 
-    <!-- overlay start / game over -->
+    <!-- overlay start / pause / game over / leaderboard -->
     <div class="overlay" id="overlay">
-      <div class="panel">
+      <div class="panel neon-panel">
         <h2 id="overlayTitle">Gensyn Racer</h2>
-        <p id="overlayText">Tap left/right or use arrow keys. Swipe up = boost, swipe down = brake. Avoid opponents and get points for overtakes.</p>
-        <div class="panel-row">
+        <p id="overlayText">Tap left/right or use arrow keys. Swipe up = boost, swipe down = brake. Avoid opponents and overtake for points.</p>
+
+        <div id="leaderboardView" class="leaderboard">
+          <h3>Top Scores</h3>
+          <ol id="lbList"></ol>
+        </div>
+
+        <div class="panel-row" id="overlayButtons">
           <button id="startBtn" class="btn-primary">Start</button>
+          <button id="viewLBBtn" class="btn-ghost">Leaderboard</button>
           <button id="resetBtn" class="btn-ghost">Reset</button>
         </div>
+
+        <div id="saveScoreRow" class="save-row" style="display:none">
+          <input id="playerName" placeholder="Your name (max 12)" maxlength="12" />
+          <button id="saveScoreBtn" class="btn-primary">Save Score</button>
+        </div>
+
         <small class="credit">Created by @Ahsan547m</small>
       </div>
     </div>
   </div>
 
-  <footer style="text-align:center;margin:18px 0;color:#ffb6df;font-weight:700">Gensyn Themed — Old-school Road Style</footer>
+  <footer style="text-align:center;margin:18px 0;color:#ffb6df;font-weight:700">Gensyn Themed — Road Fighter Vibe</footer>
 
   <script src="script.js" defer></script>
 </body>
