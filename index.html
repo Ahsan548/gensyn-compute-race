@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Gensyn Racer — Road Style</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="ui-top">
+    <h1>Gensyn Racer</h1>
+    <div class="info">
+      <span id="score">Score: 0</span>
+      <span id="speed">Speed: 1.00x</span>
+    </div>
+  </div>
+
+  <div class="game-wrap">
+    <canvas id="game" width="900" height="1200" aria-label="Gensyn Racer game"></canvas>
+
+    <!-- overlay start / game over -->
+    <div class="overlay" id="overlay">
+      <div class="panel">
+        <h2 id="overlayTitle">Gensyn Racer</h2>
+        <p id="overlayText">Tap left/right or use arrow keys. Swipe up = boost, swipe down = brake. Avoid opponents and get points for overtakes.</p>
+        <div class="panel-row">
+          <button id="startBtn" class="btn-primary">Start</button>
+          <button id="resetBtn" class="btn-ghost">Reset</button>
+        </div>
+        <small class="credit">Created by @Ahsan547m</small>
+      </div>
+    </div>
+  </div>
+
+  <footer style="text-align:center;margin:18px 0;color:#ffb6df;font-weight:700">Gensyn Themed — Old-school Road Style</footer>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
