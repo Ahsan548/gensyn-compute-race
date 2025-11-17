@@ -124,3 +124,9 @@ canvas{display:block;width:100%;height:auto;border-radius:12px;background:#05060
   .panel-row{flex-direction:column}
   .save-row{flex-direction:column}
 }
+
+/* ======================================================================
+   Overlay fail-safe: keep overlay above canvas and clickable
+   ====================================================================== */
+.overlay { z-index: 9999 !important; pointer-events: auto !important; }
+.neon-panel { z-index: 10000 !important; }
