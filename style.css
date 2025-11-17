@@ -1,8 +1,10 @@
 :root{
   --bg:#071020;
   --neon:#ff2fa6;
+  --neon-dim: rgba(255,47,166,0.12);
   --muted:#ffd6eb;
   --card: rgba(255,255,255,0.02);
+  --glass: rgba(255,255,255,0.02);
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
@@ -22,30 +24,82 @@ body{
 
 /* header */
 .ui-top{width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center}
-h1{margin:0;color:var(--neon);text-shadow:0 0 10px rgba(255,47,166,0.08)}
+h1{margin:0;color:var(--neon);text-shadow:0 0 10px var(--neon-dim)}
 .info{font-weight:700}
 
 /* game area */
 .game-wrap{position:relative;width:100%;max-width:720px}
 canvas{display:block;width:100%;height:auto;border-radius:12px;background:#05060a;box-shadow:0 30px 80px rgba(0,0,0,0.6);border:1px solid rgba(255,46,134,0.03)}
 
-/* overlay (start / game over) */
+/* overlay (neon animated panel) */
 .overlay{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   pointer-events:none;
 }
-.overlay .panel{
+.neon-panel{
   pointer-events:auto;
-  background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.03));
-  border-radius:12px;padding:18px;width:86%;max-width:520px;text-align:center;border:1px solid rgba(255,46,134,0.03)
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.03));
+  border-radius:14px;
+  padding:20px;
+  width:86%;
+  max-width:560px;
+  text-align:center;
+  border:1px solid rgba(255,46,134,0.04);
+  box-shadow: 0 12px 48px rgba(255,47,166,0.03);
+  position:relative;
+  overflow:hidden;
 }
-.overlay h2{margin:6px 0;color:var(--neon)}
+
+/* animated neon lines (subtle) */
+.neon-panel::before, .neon-panel::after{
+  content:"";
+  position:absolute;
+  left:-40%;
+  right:-40%;
+  height:120%;
+  top:-10%;
+  background: linear-gradient(90deg, transparent, rgba(255,47,166,0.03), transparent);
+  transform: rotate(-12deg);
+  animation: slideGlow 4.8s linear infinite;
+  pointer-events:none;
+}
+@keyframes slideGlow{
+  0%{transform: translateX(-40%) rotate(-12deg) scale(1);}
+  50%{transform: translateX(40%) rotate(-12deg) scale(1.02);}
+  100%{transform: translateX(-40%) rotate(-12deg) scale(1);}
+}
+
+/* neon pulsing header */
+.neon-panel h2{
+  margin:6px 0;color:var(--neon);
+  text-shadow: 0 0 10px rgba(255,47,166,0.12), 0 0 30px rgba(255,90,168,0.04);
+  animation: pulse 2.2s ease-in-out infinite;
+}
+@keyframes pulse{
+  0%{filter:brightness(1)}
+  50%{filter:brightness(1.25) drop-shadow(0 0 18px rgba(255,47,166,0.14))}
+  100%{filter:brightness(1)}
+}
+
+.overlay p{color:rgba(255,234,245,0.82)}
+
 .panel-row{display:flex;gap:12px;justify-content:center;margin-top:12px}
-.btn-primary{background:var(--neon);color:#071020;padding:10px 16px;border-radius:8px;border:none;font-weight:800}
-.btn-ghost{background:transparent;color:var(--muted);padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.03)}
+.btn-primary{background:var(--neon);color:#071020;padding:10px 16px;border-radius:8px;border:none;font-weight:800;cursor:pointer}
+.btn-ghost{background:transparent;color:var(--muted);padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);cursor:pointer}
+
+/* leaderboard area */
+.leaderboard{margin-top:10px;text-align:left;background:rgba(0,0,0,0.06);padding:8px;border-radius:8px;border:1px solid rgba(255,46,134,0.02)}
+.leaderboard h3{margin:4px 0 8px;color:var(--neon)}
+.leaderboard ol{margin:0;padding-left:18px}
+.save-row{margin-top:12px;display:flex;gap:8px;justify-content:center}
+.save-row input{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);min-width:160px;background:transparent;color:var(--muted)}
+
+/* small */
+.credit{display:block;margin-top:12px;color:rgba(255,234,245,0.65);font-size:12px}
 
 /* responsive */
 @media (max-width:540px){
-  .overlay .panel{width:92%}
-  body{padding:8px}
+  .neon-panel{padding:14px}
+  .panel-row{flex-direction:column}
+  .save-row{flex-direction:column}
 }
